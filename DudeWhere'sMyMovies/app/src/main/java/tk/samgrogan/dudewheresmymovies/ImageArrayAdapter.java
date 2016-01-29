@@ -29,6 +29,8 @@ public class ImageArrayAdapter extends ArrayAdapter<String>{
         LayoutInflater inflater = LayoutInflater.from(getContext());
         View customView = inflater.inflate(R.layout.movie_item, parent, false);
 
+        if (customView == null) customView = inflater.inflate(R.layout.movie_item,null);
+
         String singleItem = getItem(position);
         ImageView image = (ImageView) customView.findViewById(R.id.movie_item_image);
 

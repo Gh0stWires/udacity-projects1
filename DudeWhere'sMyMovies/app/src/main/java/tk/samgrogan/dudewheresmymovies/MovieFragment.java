@@ -1,10 +1,15 @@
 package tk.samgrogan.dudewheresmymovies;
 
 import android.app.Fragment;
+import android.content.Intent;
+import android.content.SharedPreferences;
 import android.os.AsyncTask;
 import android.os.Bundle;
+import android.preference.ListPreference;
+import android.preference.PreferenceManager;
 import android.util.Log;
 import android.view.LayoutInflater;
+import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.AdapterView;
@@ -21,6 +26,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
+import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -33,6 +39,13 @@ import java.util.List;
 public  class MovieFragment extends Fragment {
 
     List<String> movies = new ArrayList<String>();
+    List<String> titles = new ArrayList<String>();
+    List<String> desc = new ArrayList<String>();
+    List<String> rating = new ArrayList<String>();
+    List<String> releaseDate = new ArrayList<String>();
+    List<String> mId = new ArrayList<String>();
+    GridView gridView;
+    ImageArrayAdapter adapter;
 
 
     public MovieFragment() {
@@ -42,29 +55,109 @@ public  class MovieFragment extends Fragment {
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
         View rootView = inflater.inflate(R.layout.fragment_layout, container, false);
-        ImageArrayAdapter adapter = new ImageArrayAdapter(getActivity(), movies);
-        new GetMovies().execute();
+        adapter = new ImageArrayAdapter(getActivity(), movies);
+        updateMovies();
+        //new GetMovies().execute();
 
-        GridView gridView = (GridView) rootView.findViewById(R.id.movie_item_image_grid);
+        gridView = (GridView) rootView.findViewById(R.id.movie_item_image_grid);
 
-        gridView.setAdapter(adapter);
         System.out.println(movies);
 
-        //gridView.setOnItemClickListener(new AdapterView.OnItemClickListener(){
+        gridView.setOnItemClickListener(new AdapterView.OnItemClickListener(){
 
 
-            //@Override
-           // public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
-                //Toast.makeText(getActivity(), movies.get(position), Toast.LENGTH_LONG).show();
-            //}
-        //});
+            @Override
+            public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+                String posterUrl = adapter.getItem(position);
+                String titleString = titles.get(position);
+                String descString = desc.get(position);
+                String rateString = rating.get(position);
+                String date = releaseDate.get(position);
+                String idString = mId.get(position);
+                Intent intent = new Intent(getActivity(),DetailActivity.class)
+                        .putExtra("POSTER", posterUrl)
+                        .putExtra("TITLE", titleString)
+                        .putExtra("DESC",descString)
+                        .putExtra("RATE",rateString)
+                        .putExtra("DATE",date)
+                        .putExtra("ID", idString);
+                startActivity(intent);
+            }
+        });
 
 
 
         return rootView;
     }
 
-    public class GetMovies extends AsyncTask<Void, Void, Void> {
+    private void updateMovies(){
+        GetMovies movietask = new GetMovies();
+        String url = PreferenceManager.getDefaultSharedPreferences(getActivity())
+                .getString(getString(R.string.url_list_pref_key), getString(R.string.url_default));
+        try {
+            URL aUrl = new URL(url);
+            movietask.execute(aUrl);
+        } catch (MalformedURLException e) {
+            e.printStackTrace();
+        }
+
+
+    }
+
+    @Override
+    public void onStop() {
+        super.onStop();
+        Log.w("onStop","onStop");
+    }
+
+    @Override
+    public void onPause() {
+        super.onPause();
+        Log.w("onPause","onPause");
+        SharedPreferences.OnSharedPreferenceChangeListener spChanged = new
+                SharedPreferences.OnSharedPreferenceChangeListener() {
+                    @Override
+                    public void onSharedPreferenceChanged(SharedPreferences sharedPreferences,
+                                                          String key) {
+                        movies.clear();
+                        updateMovies();
+                    }
+                };
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        Log.w("onResume", "onResume");
+        SharedPreferences.OnSharedPreferenceChangeListener spChanged = new
+                SharedPreferences.OnSharedPreferenceChangeListener() {
+                    @Override
+                    public void onSharedPreferenceChanged(SharedPreferences sharedPreferences,
+                                                          String key) {
+                        movies.clear();
+                        updateMovies();
+                    }
+                };
+
+    }
+
+    @Override
+    public void onDestroy() {
+        super.onDestroy();
+        Log.w("onDestroy","onDestroy");
+    }
+
+    @Override
+    public void onStart() {
+        super.onStart();
+        Log.w("onStart", "onStart");
+
+
+    }
+
+
+
+    public class GetMovies extends AsyncTask<URL, Void, Void> {
 
         HttpURLConnection urlConnection = null;
         BufferedReader reader = null;
@@ -72,12 +165,15 @@ public  class MovieFragment extends Fragment {
 
         URL url;
 
+
+
         @Override
-        protected Void doInBackground(Void... params) {
+        protected Void doInBackground(URL... params) {
 
             try {
+
                 //set url and connect to it
-                url = new URL("http://api.themoviedb.org/3/discover/movie?api_key=0359c81bed7cce4e13cd5a744ea5cfbe");
+                url = params[0];
                 urlConnection = (HttpURLConnection) url.openConnection();
                 urlConnection.setRequestMethod("GET");
                 urlConnection.connect();
@@ -133,7 +229,17 @@ public  class MovieFragment extends Fragment {
                     for (int i = 0; i < films.length(); i++){
                         JSONObject f = films.getJSONObject(i);
                         String posterUrl = "http://image.tmdb.org/t/p/w185" + f.getString("poster_path");
+                        String title = f.getString("title");
+                        String description = f.getString("overview");
+                        String rate = f.getString("vote_average");
+                        String release = f.getString("release_date");
+                        String id = f.getString("id");
                         movies.add(posterUrl);
+                        titles.add(title);
+                        desc.add(description);
+                        rating.add(rate);
+                        releaseDate.add(release);
+                        mId.add(id);
                         System.out.println(posterUrl);
                     }
                 } catch (JSONException e) {
@@ -141,8 +247,7 @@ public  class MovieFragment extends Fragment {
                 }
             }
             //System.out.println(movies);
-            
-
+            gridView.setAdapter(adapter);
             //adapter.addAll(movies);
             //adapter.notifyDataSetChanged();
         }
